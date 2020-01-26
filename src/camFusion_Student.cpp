@@ -2,6 +2,7 @@
 #include <iostream>
 #include <algorithm>
 #include <numeric>
+#include <map>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 
@@ -52,7 +53,7 @@ void clusterLidarWithROI(std::vector<BoundingBox> &boundingBoxes, std::vector<Li
 
         // check wether point has been enclosed by one or by multiple boxes
         if (enclosingBoxes.size() == 1)
-        { 
+        {
             // add Lidar point to bounding box
             enclosingBoxes[0]->lidarPoints.push_back(*it1);
         }
@@ -73,7 +74,7 @@ void show3DObjects(std::vector<BoundingBox> &boundingBoxes, cv::Size worldSize, 
         cv::Scalar currColor = cv::Scalar(rng.uniform(0,150), rng.uniform(0, 150), rng.uniform(0, 150));
 
         // plot Lidar points into top view image
-        int top=1e8, left=1e8, bottom=0.0, right=0.0; 
+        int top=1e8, left=1e8, bottom=0.0, right=0.0;
         float xwmin=1e8, ywmin=1e8, ywmax=-1e8;
         for (auto it2 = it1->lidarPoints.begin(); it2 != it1->lidarPoints.end(); ++it2)
         {
@@ -106,7 +107,7 @@ void show3DObjects(std::vector<BoundingBox> &boundingBoxes, cv::Size worldSize, 
         sprintf(str1, "id=%d, #pts=%d", it1->boxID, (int)it1->lidarPoints.size());
         putText(topviewImg, str1, cv::Point2f(left-250, bottom+50), cv::FONT_ITALIC, 2, currColor);
         sprintf(str2, "xmin=%2.2f m, yw=%2.2f m", xwmin, ywmax-ywmin);
-        putText(topviewImg, str2, cv::Point2f(left-250, bottom+125), cv::FONT_ITALIC, 2, currColor);  
+        putText(topviewImg, str2, cv::Point2f(left-250, bottom+125), cv::FONT_ITALIC, 2, currColor);
     }
 
     // plot distance markers
@@ -138,7 +139,7 @@ void clusterKptMatchesWithROI(BoundingBox &boundingBox, std::vector<cv::KeyPoint
 
 
 // Compute time-to-collision (TTC) based on keypoint correspondences in successive images
-void computeTTCCamera(std::vector<cv::KeyPoint> &kptsPrev, std::vector<cv::KeyPoint> &kptsCurr, 
+void computeTTCCamera(std::vector<cv::KeyPoint> &kptsPrev, std::vector<cv::KeyPoint> &kptsCurr,
                       std::vector<cv::DMatch> kptMatches, double frameRate, double &TTC, cv::Mat *visImg)
 {
     // ...
@@ -151,8 +152,84 @@ void computeTTCLidar(std::vector<LidarPoint> &lidarPointsPrev,
     // ...
 }
 
+static vector<int> getBoundingBoxIDs(const DataFrame& frame, const int kpIndex)
+{
+    vector<int> ret;
+    // get point from keypoint for Rect compare
+    auto pt = cv::Point(frame.keypoints.at(kpIndex).pt.x, frame.keypoints.at(kpIndex).pt.y);
+
+    // loop over bounding boxes and check for matches
+    for(size_t i = 0; i < frame.boundingBoxes.size(); ++i)
+        if(frame.boundingBoxes.at(i).roi.contains(pt))
+            ret.push_back(frame.boundingBoxes.at(i).boxID);
+
+    return std::move(ret);
+}
 
 void matchBoundingBoxes(std::vector<cv::DMatch> &matches, std::map<int, int> &bbBestMatches, DataFrame &prevFrame, DataFrame &currFrame)
 {
-    // ...
+    // for each bounding box in the previous frame every bounding box in the new frame is a potential candidate
+    // so this may be solved with a two dimensional array of matching counts
+    // in scenes with a very very large count of boxes this may waste memory, so associative containers
+    // seem to be a better solution
+    map<int, map<int, unsigned int>> kptCounts;    // [prevBB][currBB] count
+
+    // loop over all matches to process them
+    for(auto matchesIt = matches.begin(); matchesIt != matches.end(); ++matchesIt) {
+
+        // get bounding boxes indices of previous and current frame
+        auto prevBBs = getBoundingBoxIDs(prevFrame, matchesIt->queryIdx);
+        auto currBBs = getBoundingBoxIDs(currFrame, matchesIt->trainIdx);
+
+        // if we have matches in both frames, fill the map
+        if(!prevBBs.empty() && !currBBs.empty()) {
+
+            // loop over previous BBs as key
+            for(auto prevBB : prevBBs) {
+
+                // loop over all current BBs as index
+                for(auto currBB : currBBs) {
+
+                    // increment or insert based on existing element
+                    auto p = kptCounts.find(prevBB);
+                    if(p != kptCounts.end()) {
+
+                        // create or increment current BB
+                        auto c = p->second.find(currBB);
+                        if(c != p->second.end())
+                            c->second++;
+                        else
+                            p->second.insert(pair<size_t, unsigned int>(currBB, 1));
+                    } else {
+
+                        // create and insert prev and current BB
+                        kptCounts[prevBB][currBB] = 1;
+                    }
+                }
+            }
+        }
+    }
+
+    // for each previous bounding box, find the best match and put to output vector
+    for(auto p : kptCounts) {
+
+        // check current boxes and find the one with highest count
+        size_t bestId = 0;
+        for(auto c : p.second)
+            if(c.second > bestId)
+                bestId = c.first;
+
+        // if found best, add to return map
+        if(bestId > 0)
+            bbBestMatches[p.first] = bestId;
+    }
+
+    cout << "Found " << bbBestMatches.size() << " matches: " << endl;
+
+    for(auto p : bbBestMatches)
+        cout << p.first << " -> " << p.second << endl;
+
+    // TODO: visualize old and new frame BBs with IDs and compare them to
+    // ensure function works fine!
+    assert(false && "TODO");
 }
