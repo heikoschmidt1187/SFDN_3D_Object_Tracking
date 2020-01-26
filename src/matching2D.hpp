@@ -1,4 +1,3 @@
-
 #ifndef matching2D_hpp
 #define matching2D_hpp
 
@@ -20,6 +19,7 @@
 #include "dataStructures.h"
 
 
+void VisualizeKeypoints(cv::Mat &img, std::vector<cv::KeyPoint> &keypoints, std::string windowName, bool bVis=true);
 void detKeypointsHarris(std::vector<cv::KeyPoint> &keypoints, cv::Mat &img, bool bVis=false);
 void detKeypointsShiTomasi(std::vector<cv::KeyPoint> &keypoints, cv::Mat &img, bool bVis=false);
 void detKeypointsModern(std::vector<cv::KeyPoint> &keypoints, cv::Mat &img, std::string detectorType, bool bVis=false);
