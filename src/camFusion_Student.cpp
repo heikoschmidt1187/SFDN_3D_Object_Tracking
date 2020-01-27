@@ -149,7 +149,21 @@ void computeTTCCamera(std::vector<cv::KeyPoint> &kptsPrev, std::vector<cv::KeyPo
 void computeTTCLidar(std::vector<LidarPoint> &lidarPointsPrev,
                      std::vector<LidarPoint> &lidarPointsCurr, double frameRate, double &TTC)
 {
-    // ...
+    // TODO: filtering values -- take care for outliers
+
+    // calculate time between two frames
+    double dT = 1. / frameRate;
+
+    // find closest distance lidar points
+    double minXPrev = 1e9, minXCurr = 1e9;
+
+    for(auto it = lidarPointsPrev.begin(); it != lidarPointsPrev.end(); ++it)
+        minXPrev = (minXPrev > it->x) ? it->x : minXPrev;
+
+    for(auto it = lidarPointsCurr.begin(); it != lidarPointsCurr.end(); ++it)
+        minXCurr = (minXCurr > it->x) ? it->x : minXCurr;
+
+    TTC = minXCurr * dT / (minXPrev - minXCurr);
 }
 
 static vector<int> getBoundingBoxIDs(const DataFrame& frame, const int kpIndex)
@@ -225,11 +239,4 @@ void matchBoundingBoxes(std::vector<cv::DMatch> &matches, std::map<int, int> &bb
     }
 
     cout << "Found " << bbBestMatches.size() << " matches: " << endl;
-
-    for(auto p : bbBestMatches)
-        cout << p.first << " -> " << p.second << endl;
-
-    // TODO: visualize old and new frame BBs with IDs and compare them to
-    // ensure function works fine!
-    assert(false && "TODO");
 }
