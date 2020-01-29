@@ -149,21 +149,36 @@ void computeTTCCamera(std::vector<cv::KeyPoint> &kptsPrev, std::vector<cv::KeyPo
 void computeTTCLidar(std::vector<LidarPoint> &lidarPointsPrev,
                      std::vector<LidarPoint> &lidarPointsCurr, double frameRate, double &TTC)
 {
-    // TODO: filtering values -- take care for outliers
-
     // calculate time between two frames
     double dT = 1. / frameRate;
+    double laneWidth = 3.75;    // lane width, assumed for German city lanes
 
-    // find closest distance lidar points
-    double minXPrev = 1e9, minXCurr = 1e9;
+    // filter the lidar points to the ego lane
+    vector<LidarPoint> lidarFilteredPrev, lidarFilteredCurr;
 
+    // filter points in ego lane
     for(auto it = lidarPointsPrev.begin(); it != lidarPointsPrev.end(); ++it)
-        minXPrev = (minXPrev > it->x) ? it->x : minXPrev;
+        if(abs(it->y) <= (laneWidth / 2.0))
+            lidarFilteredPrev.push_back(*it);
 
     for(auto it = lidarPointsCurr.begin(); it != lidarPointsCurr.end(); ++it)
-        minXCurr = (minXCurr > it->x) ? it->x : minXCurr;
+        if(abs(it->y) <= (laneWidth / 2.0))
+            lidarFilteredCurr.push_back(*it);
 
-    TTC = minXCurr * dT / (minXPrev - minXCurr);
+    // try to compensate outliers by taking the median of all measured points
+    // --> when averaging, outliers have too much influence on the values
+    sort(lidarFilteredPrev.begin(), lidarFilteredPrev.end(), [](LidarPoint a, LidarPoint b)->bool{
+            return a.x < b.x;
+        });
+
+    sort(lidarFilteredCurr.begin(), lidarFilteredCurr.end(), [](LidarPoint a, LidarPoint b)->bool{
+            return a.x < b.x;
+        });
+
+    double medianDistXPrev = lidarFilteredPrev[lidarFilteredPrev.size() / 2].x;
+    double medianDistXCurr = lidarFilteredCurr[lidarFilteredCurr.size() / 2].x;
+
+    TTC = medianDistXCurr * dT / (medianDistXPrev - medianDistXCurr);
 }
 
 static vector<int> getBoundingBoxIDs(const DataFrame& frame, const int kpIndex)
