@@ -168,7 +168,40 @@ void clusterKptMatchesWithROI(BoundingBox &boundingBox, std::vector<cv::KeyPoint
 void computeTTCCamera(std::vector<cv::KeyPoint> &kptsPrev, std::vector<cv::KeyPoint> &kptsCurr,
                       std::vector<cv::DMatch> kptMatches, double frameRate, double &TTC, cv::Mat *visImg)
 {
-    // ...
+    // calculate the distance ratios on each pair of keypints
+    vector<double> distRatios;
+    for(auto it1 = kptMatches.begin(); it1 != kptMatches.end() - 1; ++it1) {
+        auto kpOuterCurr = kptsCurr.at(it1->trainIdx);
+        auto kpOuterPrev = kptsPrev.at(it1->queryIdx);
+
+        for(auto it2 = kptMatches.begin() + 1; it2 != kptMatches.end(); ++it2) {
+            auto kpInnerCurr = kptsCurr.at(it2->trainIdx);
+            auto kpInnerPrev = kptsPrev.at(it2->queryIdx);
+
+            // calculate current and previous Euclidean distances btw. each keypoint in the pair
+            double distCurr = cv::norm(kpOuterCurr.pt - kpInnerCurr.pt);
+            double distPrev = cv::norm(kpOuterPrev.pt - kpInnerPrev.pt);
+
+            double minDist = 100.0F;
+
+            // apply threshold, take care for zero division
+            if((distPrev > numeric_limits<double>::epsilon()) && (distCurr >= minDist)) {
+                double distRatio = distCurr / distPrev;
+                distRatios.push_back(distRatio);
+            }
+        }
+    }
+
+    // calculation only possible if ratios are present
+    if(distRatios.size() == 0) {
+        TTC = numeric_limits<double>::quiet_NaN();
+        return;
+    }
+
+    // take care for outliers, use median instead of average to avoid outliers
+    // having too much influence
+    sort(distRatios.begin(), distRatios.end());
+    TTC = (-1.0 / frameRate) / (1 - distRatios[distRatios.size() / 2]);
 }
 
 
