@@ -134,7 +134,33 @@ void show3DObjects(std::vector<BoundingBox> &boundingBoxes, cv::Size worldSize, 
 // associate a given bounding box with the keypoints it contains
 void clusterKptMatchesWithROI(BoundingBox &boundingBox, std::vector<cv::KeyPoint> &kptsPrev, std::vector<cv::KeyPoint> &kptsCurr, std::vector<cv::DMatch> &kptMatches)
 {
-    // ...
+    // get all matches with keypoints in the bounding box
+    vector<cv::DMatch> roiMatches;
+    double meanDistance = 0.F;
+
+    for(auto it = kptMatches.begin(); it != kptMatches.end(); ++it) {
+        auto keypoint = kptsCurr.at(it->trainIdx);
+
+        if(boundingBox.roi.contains(cv::Point(keypoint.pt.x, keypoint.pt.y))) {
+            roiMatches.push_back(*it);
+            meanDistance += it->distance;
+        }
+    }
+
+    // calculate the distance mean for alter outliers filtering
+    cout << "Matched keypoints to ROI: " << roiMatches.size() << endl;
+    if(roiMatches.size() > 0)
+        meanDistance /= roiMatches.size();
+    else
+        return;
+
+    // only push keypoints below a specific threshold of the mean
+    auto thresh = 0.8 * meanDistance;
+    for(auto it = roiMatches.begin(); it != roiMatches.end(); ++it)
+        if(it->distance < thresh)
+            boundingBox.kptMatches.push_back(*it);
+
+    cout << "Lasting keypoints after filtering: " << boundingBox.kptMatches.size() << endl;
 }
 
 
