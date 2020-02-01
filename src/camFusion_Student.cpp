@@ -138,29 +138,36 @@ void clusterKptMatchesWithROI(BoundingBox &boundingBox, std::vector<cv::KeyPoint
     vector<cv::DMatch> roiMatches;
     double meanDistance = 0.F;
 
-    for(auto it = kptMatches.begin(); it != kptMatches.end(); ++it) {
-        auto keypoint = kptsCurr.at(it->trainIdx);
+    // loop over all matches
+    for(auto match : kptMatches) {
 
-        if(boundingBox.roi.contains(cv::Point(keypoint.pt.x, keypoint.pt.y))) {
-            roiMatches.push_back(*it);
-            meanDistance += it->distance;
+        // get keypoint in current image
+        auto keypoint = kptsCurr.at(match.trainIdx);
+
+        // check if the point lies inside the bonding box
+        if(boundingBox.roi.contains(keypoint.pt)) {
+
+            // push match into list and accumulate distance
+            roiMatches.push_back(match);
+            meanDistance += match.distance;
         }
     }
 
-    // calculate the distance mean for alter outliers filtering
+    // calculate the mean of the distances
     cout << "Matched keypoints to ROI: " << roiMatches.size() << endl;
     if(roiMatches.size() > 0)
         meanDistance /= roiMatches.size();
     else
         return;
 
-    // only push keypoints below a specific threshold of the mean
+    // filter the keypoints regarding their mean distance --> only if they are
+    // above a specific threshold they are accepted at max 80% of mean distance
     auto thresh = 0.8 * meanDistance;
-    for(auto it = roiMatches.begin(); it != roiMatches.end(); ++it)
-        if(it->distance < thresh)
-            boundingBox.kptMatches.push_back(*it);
+    for(auto match : roiMatches)
+        if(match.distance < thresh)
+            boundingBox.kptMatches.push_back(match);
 
-    cout << "Lasting keypoints after filtering: " << boundingBox.kptMatches.size() << endl;
+    cout << "Keypoints after filtering: " << boundingBox.kptMatches.size() << endl;
 }
 
 
@@ -171,10 +178,14 @@ void computeTTCCamera(std::vector<cv::KeyPoint> &kptsPrev, std::vector<cv::KeyPo
     // calculate the distance ratios on each pair of keypints
     vector<double> distRatios;
     for(auto it1 = kptMatches.begin(); it1 != kptMatches.end() - 1; ++it1) {
+
+        // get first keypoint pait between previous and current image
         auto kpOuterCurr = kptsCurr.at(it1->trainIdx);
         auto kpOuterPrev = kptsPrev.at(it1->queryIdx);
 
         for(auto it2 = kptMatches.begin() + 1; it2 != kptMatches.end(); ++it2) {
+
+            // get second keypoint pait between previous and current image
             auto kpInnerCurr = kptsCurr.at(it2->trainIdx);
             auto kpInnerPrev = kptsPrev.at(it2->queryIdx);
 
@@ -225,7 +236,7 @@ void computeTTCLidar(std::vector<LidarPoint> &lidarPointsPrev,
             lidarFilteredCurr.push_back(*it);
 
     // try to compensate outliers by taking the median of all measured points
-    // --> when averaging, outliers have too much influence on the values
+    // --> when averaging, outliers have too much influence on the values, leading to negative TTCs
     sort(lidarFilteredPrev.begin(), lidarFilteredPrev.end(), [](LidarPoint a, LidarPoint b)->bool{
             return a.x < b.x;
         });
