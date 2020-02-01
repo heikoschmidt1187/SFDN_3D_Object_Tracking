@@ -114,15 +114,19 @@ The code should be quite self explanatory with it's comments, but in general the
 The matching works quite well most of the time, here are some examples:
 
 Example 1:
+
 <img src="images/MatchEx1.png" width="779" />
 
 Example 2:
+
 <img src="images/MatchEx2.png" width="779" />
 
 Example 3:
+
 <img src="images/MatchEx3.png" width="779" />
 
 Example 4:
+
 <img src="images/MatchEx4.png" width="779" />
 
 ### FP.2 - Compute Lidar-based TTC
