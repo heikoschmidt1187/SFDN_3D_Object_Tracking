@@ -304,5 +304,36 @@ Frame 5: big outlier at far side on the left, TTC out of the row:
 
 <img src="images/LidarFrame5.png" width="500" />
 
-
 ### FP.6 - Performance Evaluation 2
+Different detector/descriptor combinations lead to very different results in providing points for calculating the camera based TTC. This is mainly related to the performance regarding the number of keypoints evaluated in the [Midterm Project](https://github.com/heikoschmidt1187/SFND_2D_Feature_Tracking). Especially `HARRIS` and `ORB` lead to really bad results, like depicted in the following diagrams:
+
+Harris/BRIEF Lidar TTC vs. Camera TTC:
+
+<img src="images/HarrisBrief.png" width="500" />
+
+
+ORB/BRIEF Lidar TTC vs. Camera TTC:
+
+<img src="images/OrbBrief.png" width="500" />
+
+On the other hand, `AKAZE`, `FAST` and `SIFT` performed really good on the given dataset of 18 frames:
+
+
+AKAZE/BRIEF Lidar TTC vs. Camera TTC:
+
+<img src="images/AkazeBrief.png" width="500" />
+
+
+FAST/FREAK Lidar TTC vs. Camera TTC:
+
+<img src="images/FastFreak.png" width="500" />
+
+
+SIFT/FREAK Lidar TTC vs. Camera TTC:
+
+<img src="images/SiftFreak.png" width="500" />
+
+
+All the dataset can be found in [this Spreadsheed](https://github.com/heikoschmidt1187/SFDN_3D_Object_Tracking/blob/master/dat/PerformanceLog.ods) for analysis or reference purpoises. The format can be found in the following screenshot, sorted in ascending order regarding the time difference lidar to camera TTC:
+
+<img src="images/PerformanceLogExample.png" width="700" />

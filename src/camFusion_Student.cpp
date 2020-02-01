@@ -254,7 +254,7 @@ void computeTTCLidar(std::vector<LidarPoint> &lidarPointsPrev,
     bool bLogMeasure = false;
     if(bLogMeasure) {
         std::ofstream file;
-        file.open("LidarTTC.log", std::ios_base::app);
+        file.open("LidarTTC.log", ios_base::app);
         file << TTC << endl;
         file.close();
     }
