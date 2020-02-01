@@ -256,60 +256,86 @@ static vector<int> getBoundingBoxIDs(const DataFrame& frame, const int kpIndex)
 
 void matchBoundingBoxes(std::vector<cv::DMatch> &matches, std::map<int, int> &bbBestMatches, DataFrame &prevFrame, DataFrame &currFrame)
 {
-    // for each bounding box in the previous frame every bounding box in the new frame is a potential candidate
-    // so this may be solved with a two dimensional array of matching counts
-    // in scenes with a very very large count of boxes this may waste memory, so associative containers
-    // seem to be a better solution
-    map<int, map<int, unsigned int>> kptCounts;    // [prevBB][currBB] count
+    // Each DMatch contains two keypoint indices, queryIdx and trainIdx, based on the order of image arguments to match.
+    // https://docs.opencv.org/4.1.0/db/d39/classcv_1_1DescriptorMatcher.html#a0f046f47b68ec7074391e1e85c750cba
+    // prevFrame.keypoints --> queryIdx
+    // currFrame.keypoints --> trainIdx
+    multimap<int, int> multiMap {};
 
-    // loop over all matches to process them
-    for(auto matchesIt = matches.begin(); matchesIt != matches.end(); ++matchesIt) {
+    // loop over all matches
+    for(auto match : matches) {
 
-        // get bounding boxes indices of previous and current frame
-        auto prevBBs = getBoundingBoxIDs(prevFrame, matchesIt->queryIdx);
-        auto currBBs = getBoundingBoxIDs(currFrame, matchesIt->trainIdx);
+        // get keypoints of matched pair
+        cv::KeyPoint prevKeypoint = prevFrame.keypoints[match.queryIdx];
+        cv::KeyPoint currKeypoint = currFrame.keypoints[match.trainIdx];
 
-        // if we have matches in both frames, fill the map
-        if(!prevBBs.empty() && !currBBs.empty()) {
+        // loop over all current bounding boxes
+        for(auto currBoundingBox : currFrame.boundingBoxes)
 
-            // loop over previous BBs as key
-            for(auto prevBB : prevBBs) {
+            // check if the current keypoint lies in the current bounding bxo
+            if(currBoundingBox.roi.contains(currKeypoint.pt))
 
-                // loop over all current BBs as index
-                for(auto currBB : currBBs) {
+                // if yes, loop over all previous bounding boxes
+                for(auto prevBoundingBox : prevFrame.boundingBoxes)
 
-                    // increment or insert based on existing element
-                    auto p = kptCounts.find(prevBB);
-                    if(p != kptCounts.end()) {
+                    // check if the previous keypoint lies in the previous bounding box
+                    if(prevBoundingBox.roi.contains(prevKeypoint.pt))
 
-                        // create or increment current BB
-                        auto c = p->second.find(currBB);
-                        if(c != p->second.end())
-                            c->second++;
-                        else
-                            p->second.insert(pair<size_t, unsigned int>(currBB, 1));
-                    } else {
-
-                        // create and insert prev and current BB
-                        kptCounts[prevBB][currBB] = 1;
-                    }
-                }
-            }
-        }
+                        // if all conditions met, add the matching candidate to the multimap
+                        multiMap.insert({currBoundingBox.boxID, prevBoundingBox.boxID});
     }
 
-    // for each previous bounding box, find the best match and put to output vector
-    for(auto p : kptCounts) {
+    // check for each current bounding box if there are candidates
+    for(auto currBoundingBox : currFrame.boundingBoxes) {
 
-        // check current boxes and find the one with highest count
-        size_t bestId = 0;
-        for(auto c : p.second)
-            if(c.second > bestId)
-                bestId = c.first;
+        // get iterators to all matches of the current bounding box with previous boxes
+        auto range = multiMap.equal_range(currBoundingBox.boxID);
 
-        // if found best, add to return map
-        if(bestId > 0)
-            bbBestMatches[p.first] = bestId;
+        // build a vector to count the box matches per candidate
+        vector<int> matchVector(prevFrame.boundingBoxes.size(), 0);
+
+        // increment the matches to effectively count the box matches
+        for(auto it = range.first; it != range.second; ++it)
+            matchVector.at(it->second)++;
+
+        // get best match as element with the maximum match count
+        auto maxIt = max_element(matchVector.begin(), matchVector.end());
+
+        // take care for empty sets (should never happen) and if there are matches by
+        // checking occurences > 0
+        if((maxIt != matchVector.end()) && (*maxIt > 0))
+
+            // insert the match into the resulting maü
+            bbBestMatches.insert({distance(matchVector.begin(), maxIt), currBoundingBox.boxID});
+    }
+
+    bool bShowMatchedBoxes = false;
+    if(bShowMatchedBoxes) {
+        cv::namedWindow("prev", 1);
+        cv::namedWindow("curr", 1);
+
+        for(auto b : bbBestMatches) {
+            cv::Mat prev = prevFrame.cameraImg.clone();
+            cv::Mat curr = currFrame.cameraImg.clone();
+
+            auto pb = find_if(prevFrame.boundingBoxes.begin(), prevFrame.boundingBoxes.end(),[=](BoundingBox a)->bool{
+                return a.boxID == b.first;
+            });
+
+            auto cb = find_if(currFrame.boundingBoxes.begin(), currFrame.boundingBoxes.end(),[=](BoundingBox a)->bool{
+                return a.boxID == b.second;
+            });
+
+            if((pb != prevFrame.boundingBoxes.end()) && (cb != currFrame.boundingBoxes.end())) {
+                cv::rectangle(prev, pb->roi,cv::Scalar(0,0,255), 2);
+                cv::rectangle(curr, cb->roi,cv::Scalar(0,0,255), 2);
+            }
+
+            cv::imshow("prev", prev);
+            cv::imshow("curr", curr);
+            cv::waitKey(0);
+
+        }
     }
 
     cout << "Found " << bbBestMatches.size() << " matches: " << endl;
