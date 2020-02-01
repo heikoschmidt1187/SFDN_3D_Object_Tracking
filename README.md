@@ -261,3 +261,48 @@ TTC = (-1.0 / frameRate) / (1 - distRatios[distRatios.size() / 2]);
 ```
 
 Again, the code is equal to the one worked with in the corresponding lesson and the median is used to remove outliers from the calculation set.
+
+### FP.5 - Performance Evaluation 1
+With the given implementation, none of the 18 analyzed frames has been far out of the norm regarding it's calculated lidar TTC value. This is because of taking the median instead of an average value when truncating the data point base for calculation. The following table shows the values for each frame:
+
+||Lidar TTC in seconds|
+|:-|:-|
+|Frame 1|12.5156|
+|Frame 2|12.6142|
+|Frame 3|14.091|
+|Frame 4|16.6894|
+|Frame 5|15.9082|
+|Frame 6|12.6787|
+|Frame 7|11.9844|
+|Frame 8|13.1241|
+|Frame 9|13.0241|
+|Frame 10|11.1746|
+|Frame 11|12.8086|
+|Frame 12|8.95978|
+|Frame 13|9.96439|
+|Frame 14|9.59863|
+|Frame 15|8.57352|
+|Frame 16|9.51617|
+|Frame 17|9.54658|
+|Frame 18|8.3988|
+
+A little bit out of the row are frames 3 to 5, so let's have a look at them:
+
+Frame 6: reference frame, 12.68s TTC:
+
+<img src="images/LidarFrame6.png" width="500" />
+
+Frame 3: outliers at far side, with cluster left:
+
+<img src="images/LidarFrame3.png" width="500" />
+
+Frame 4: more outliers at far side, TTC more out of the row:
+
+<img src="images/LidarFrame4.png" width="500" />
+
+Frame 5: big outlier at far side on the left, TTC out of the row:
+
+<img src="images/LidarFrame5.png" width="500" />
+
+
+### FP.6 - Performance Evaluation 2

@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <numeric>
 #include <map>
+#include <fstream>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 
@@ -249,6 +250,14 @@ void computeTTCLidar(std::vector<LidarPoint> &lidarPointsPrev,
     double medianDistXCurr = lidarFilteredCurr[lidarFilteredCurr.size() / 2].x;
 
     TTC = medianDistXCurr * dT / (medianDistXPrev - medianDistXCurr);
+
+    bool bLogMeasure = false;
+    if(bLogMeasure) {
+        std::ofstream file;
+        file.open("LidarTTC.log", std::ios_base::app);
+        file << TTC << endl;
+        file.close();
+    }
 }
 
 void matchBoundingBoxes(std::vector<cv::DMatch> &matches, std::map<int, int> &bbBestMatches, DataFrame &prevFrame, DataFrame &currFrame)
