@@ -240,20 +240,6 @@ void computeTTCLidar(std::vector<LidarPoint> &lidarPointsPrev,
     TTC = medianDistXCurr * dT / (medianDistXPrev - medianDistXCurr);
 }
 
-static vector<int> getBoundingBoxIDs(const DataFrame& frame, const int kpIndex)
-{
-    vector<int> ret;
-    // get point from keypoint for Rect compare
-    auto pt = cv::Point(frame.keypoints.at(kpIndex).pt.x, frame.keypoints.at(kpIndex).pt.y);
-
-    // loop over bounding boxes and check for matches
-    for(size_t i = 0; i < frame.boundingBoxes.size(); ++i)
-        if(frame.boundingBoxes.at(i).roi.contains(pt))
-            ret.push_back(frame.boundingBoxes.at(i).boxID);
-
-    return std::move(ret);
-}
-
 void matchBoundingBoxes(std::vector<cv::DMatch> &matches, std::map<int, int> &bbBestMatches, DataFrame &prevFrame, DataFrame &currFrame)
 {
     // Each DMatch contains two keypoint indices, queryIdx and trainIdx, based on the order of image arguments to match.
